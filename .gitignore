@@ -73,3 +73,15 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# VSProject
+/Debug
+/Release
+*.opensdf
+*.sdf
+*.sln
+*.v12.suo
+*.vcxproj*
+
+# Testfiles
+/test.dat
