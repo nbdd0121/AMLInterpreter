@@ -1,6 +1,7 @@
 #include "Interpreter.h"
 #include "Package.h"
 #include "Integer.h"
+#include "Name.h"
 
 #include <cassert>
 #include <iostream>
@@ -13,7 +14,6 @@ Interpreter::Interpreter(Bytecode& bc) :bytecode(bc) {
 
 }
 
-
 Interpreter::~Interpreter() {}
 
 bool Interpreter::unexpected() {
@@ -21,41 +21,67 @@ bool Interpreter::unexpected() {
     return false;
 }
 
+/* 20.2.2 Name Objects Encoding */
 void Interpreter::ParseNameSeg() {
-    uint8_t data = bytecode.NextBytedata();
-    assert(data >= 'A'&&data <= 'Z' || data == '_');
-    std::cout << (char)data;
-    data = bytecode.NextBytedata();
-    assert(data >= 'A'&&data <= 'Z' || data >= '0'&&data <= '9' || data == '_');
-    std::cout << (char)data;
-    data = bytecode.NextBytedata();
-    assert(data >= 'A'&&data <= 'Z' || data >= '0'&&data <= '9' || data == '_');
-    std::cout << (char)data;
-    data = bytecode.NextBytedata();
-    assert(data >= 'A'&&data <= 'Z' || data >= '0'&&data <= '9' || data == '_');
-    std::cout << (char)data;
+    uint8_t a = bytecode.NextBytedata();
+    assert(a >= 'A'&&a <= 'Z' || a == '_');
+    uint8_t b = bytecode.NextBytedata();
+    assert(b >= 'A'&&b <= 'Z' || b >= '0'&&b <= '9' || b == '_');
+    uint8_t c = bytecode.NextBytedata();
+    assert(c >= 'A'&&c <= 'Z' || c >= '0'&&c <= '9' || c == '_');
+    uint8_t d = bytecode.NextBytedata();
+    assert(d >= 'A'&&d <= 'Z' || d >= '0'&&d <= '9' || d == '_');
+    returnValue = new NameSegment(a, b, c, d);
 }
 
-bool Interpreter::tryParseNamePath() {
+bool Interpreter::TryParseNameString() {
+    if (bytecode.ConsumeIf('\\')) {
+        TryParseNamePath() || unexpected();
+        returnValue = new RootPath((Name*)returnValue);
+        return true;
+    } else if (bytecode.PeekBytedata() == '^') {
+        ParsePrefixPath();
+        return true;
+    } else {
+        return TryParseNamePath();
+    }
+}
+
+void Interpreter::ParsePrefixPath() {
+    if (bytecode.ConsumeIf('^')) {
+        ParsePrefixPath();
+        returnValue = new PrefixPath((Name*)returnValue);
+    } else {
+        TryParseNamePath() || unexpected();
+    }
+}
+
+bool Interpreter::TryParseNamePath() {
     uint8_t peek = bytecode.PeekBytedata();
     switch(peek) {
-    case DualNamePrefix:
+    case DualNamePrefix: {
         bytecode.Consume();
         ParseNameSeg();
-        std::cout << ".";
+        Handle<Name> parent = (Name*)returnValue;
         ParseNameSeg();
+        returnValue = new NamePath(parent, (Name*)returnValue);
         return true;
+    }
     case MultiNamePrefix: {
         bytecode.Consume();
         uint8_t SegCount = bytecode.NextBytedata();
-        for (int i = 0; i < SegCount; i++) {
-            if (i != 0) std::cout << ".";
+        ParseNameSeg();
+        Handle<Name> name = (Name*)returnValue;
+        for (int i = 1; i < SegCount; i++) {
             ParseNameSeg();
+            name = new NamePath(name, (Name*)returnValue);
         }
+        returnValue = name;
         return true;
     }
     case NullName:
         bytecode.Consume();
+        returnValue = nullptr;
         return true;
     }
     if (peek >= 'A'&&peek <= 'Z' || peek=='_') {
@@ -65,24 +91,7 @@ bool Interpreter::tryParseNamePath() {
     return false;
 }
 
-bool Interpreter::tryParseNameString() {
-    if (bytecode.ConsumeIf('\\')) {
-        std::cout << "\\";
-        tryParseNamePath() || unexpected();
-        return true;
-    } else if(bytecode.ConsumeIf('^')) {
-        std::cout << "^";
-        while (bytecode.ConsumeIf('^')) {
-            std::cout << "^";
-        }
-        tryParseNamePath() || unexpected();
-        return true;
-    } else {
-        return tryParseNamePath();
-    }
-}
-
-/* 20.2.3 */
+/* 20.2.3 Data Objects Encoding */
 bool Interpreter::TryParseComputationalData() {
     switch (bytecode.NextBytedata()) {
     case BytePrefix:
@@ -142,7 +151,8 @@ bool Interpreter::TryParseDataRefObject() {
     return TryParseDataObject();
 }
 
-uint32_t Interpreter::parsePkgLength() {
+/* 20.2.4 Package Length Encoding */
+uint32_t Interpreter::ParsePkgLength() {
     uint8_t pkgLeadByte = bytecode.NextBytedata();
     uint32_t length;
     switch (pkgLeadByte >> 6) {
@@ -159,7 +169,6 @@ uint32_t Interpreter::parsePkgLength() {
     }
     return length;
 }
-
 
 bool Interpreter::tryParseTermObj() {
     return tryParseNameSpaceModifierObj() || TryParseNamedObj();
@@ -187,7 +196,8 @@ bool Interpreter::tryParseNameSpaceModifierObj() {
 void Interpreter::parseDefName() {
     bytecode.NextBytedata();
     std::cout << "Name(";
-    tryParseNameString() || unexpected();
+    TryParseNameString() || unexpected();
+    returnValue->Dump();
     std::cout << ",";
     TryParseDataRefObject() || unexpected();
     returnValue->Dump();
@@ -197,9 +207,10 @@ void Interpreter::parseDefName() {
 void Interpreter::parseDefScope() {
     bytecode.NextBytedata();
     size_t ptr = bytecode.GetPointer();
-    ptr += parsePkgLength();
+    ptr += ParsePkgLength();
     std::cout << "Scope(";
-    tryParseNameString() || unexpected();
+    TryParseNameString() || unexpected();
+    returnValue->Dump();
     Bytecode scopeCode = bytecode.Slice(bytecode.GetPointer(), ptr);
     Interpreter interp(scopeCode);
     // interp.parseTermList();
@@ -224,7 +235,7 @@ bool Interpreter::TryParseDefPackage() {
     if (!bytecode.ConsumeIf(PackageOp)) return false;
     uint32_t pointer = bytecode.GetPointer();
     /* PkgLength */
-    pointer += parsePkgLength();
+    pointer += ParsePkgLength();
     /* NumElements */
     uint8_t numElements = bytecode.NextBytedata();
     Handle<Package> package = new Package(numElements);

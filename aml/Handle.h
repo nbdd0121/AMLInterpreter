@@ -42,10 +42,14 @@ class Handle {
         value = val;
         Retain();
     }
-    operator T*() {
+    operator T*() const {
         return value;
     }
-    T* operator->() {
+    template<typename V>
+    explicit operator V*() const {
+        return (V*)value;
+    }
+    T* operator->() const {
         return value;
     }
     ~Handle() {

@@ -49,8 +49,9 @@ class Interpreter {
 
     /* 20.2.2 */
     void ParseNameSeg();
-    bool tryParseNamePath();
-    bool tryParseNameString();
+    bool TryParseNameString();
+    void ParsePrefixPath();
+    bool TryParseNamePath();
 
     /* 20.2.3 */
     bool TryParseComputationalData();
@@ -58,7 +59,7 @@ class Interpreter {
     bool TryParseDataRefObject();
 
     /* 20.2.4 */
-    uint32_t parsePkgLength();
+    uint32_t ParsePkgLength();
 
     /* 20.2.5 */
     bool tryParseTermObj();
