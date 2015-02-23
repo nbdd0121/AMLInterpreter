@@ -18,7 +18,7 @@ class Package : public Value {
   public:
     Package(size_t size);
     virtual ~Package();
-    virtual void Dump() const override;
+    virtual void Dump(int ident) const override;
 
     size_t Size() {
         return size;

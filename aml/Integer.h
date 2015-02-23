@@ -16,7 +16,7 @@ class Integer: public Value {
   public:
     Integer(uint64_t value);
     virtual ~Integer();
-    virtual void Dump() const override;
+    virtual void Dump(int ident) const override;
 
     uint64_t GetValue() {
         return value;

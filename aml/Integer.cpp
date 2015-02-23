@@ -14,7 +14,7 @@ Integer::~Integer() {
     // std::cout << "Integer dispose\n";
 }
 
-void Integer::Dump() const {
+void Integer::Dump(int ident) const {
     std::cout << value;
 }
 

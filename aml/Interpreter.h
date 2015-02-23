@@ -7,10 +7,13 @@
 #include "Bytecode.h"
 #include "Handle.h"
 #include "Value.h"
+#include "Scope.h"
 
 namespace norlit {
 namespace acpi {
 namespace aml {
+
+class Name;
 
 class Interpreter {
   private:
@@ -41,9 +44,16 @@ class Interpreter {
 
     Bytecode& bytecode;
     Handle<Value> returnValue;
+    Handle<Scope> root;
+    Handle<Scope> current;
+    Handle<Name> path;
   public:
-    Interpreter(Bytecode& bc);
+    Interpreter(Bytecode& bc, Scope* root, Scope* current, Name* ref);
     ~Interpreter();
+
+    inline Handle<Scope> GetCurrentScope() {
+        return current;
+    }
 
     bool unexpected();
 
@@ -51,7 +61,7 @@ class Interpreter {
     void ParseNameSeg();
     bool TryParseNameString();
     void ParsePrefixPath();
-    bool TryParseNamePath();
+    bool TryParseNamePath(Name* parent);
 
     /* 20.2.3 */
     bool TryParseComputationalData();

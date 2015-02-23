@@ -1,5 +1,5 @@
-#ifndef NORLIT_ACPI_AML_IDENTIFIER_H
-#define NORLIT_ACPI_AML_IDENTIFIER_H
+#ifndef NORLIT_ACPI_AML_NAME_H
+#define NORLIT_ACPI_AML_NAME_H
 
 #include <cstdint>
 #include <cstddef>
@@ -11,11 +11,17 @@ namespace norlit {
 namespace acpi {
 namespace aml {
 
+class Interpreter;
+class Scope;
+
 class Name : public Value {
   protected:
     Name();
   public:
     virtual ~Name();
+    virtual Handle<Name> Parent() const = 0;
+    virtual Handle<Value> Get(Scope* scope) const = 0;
+    virtual void Put(Scope* scope, Value* val) const = 0;
 };
 
 class NameSegment : public Name {
@@ -23,37 +29,41 @@ class NameSegment : public Name {
     char name[4];
   public:
     NameSegment(char a, char b, char c, char d);
+    NameSegment(const char*);
     virtual ~NameSegment();
-    virtual void Dump() const;
+    virtual void Dump(int ident) const;
+    virtual Handle<Name> Parent() const override;
+    virtual Handle<Value> Get(Scope* scope) const override;
+    virtual void Put(Scope* scope, Value* val) const override;
+
+    inline const char* GetName() const {
+        return name;
+    }
 };
 
 class NamePath : public Name {
   private:
     Handle<Name> parent;
-    Handle<Name> name;
+    Handle<NameSegment> name;
   public:
-    NamePath(Name* parent, Name* name);
+    NamePath(Name* parent, NameSegment* name);
     virtual ~NamePath();
-    virtual void Dump() const;
+    virtual void Dump(int ident) const;
+    virtual Handle<Name> Parent() const override;
+    virtual Handle<Value> Get(Scope* scope) const override;
+    virtual void Put(Scope* scope, Value* val) const override;
 };
 
 class RootPath : public Name {
-  private:
-    Handle<Name> name;
   public:
-    RootPath(Name* name);
+    RootPath();
     virtual ~RootPath();
-    virtual void Dump() const;
+    virtual void Dump(int ident) const;
+    virtual Handle<Name> Parent() const override;
+    virtual Handle<Value> Get(Scope* scope) const override;
+    virtual void Put(Scope* scope, Value* val) const override;
 };
 
-class PrefixPath : public Name {
-  private:
-    Handle<Name> name;
-  public:
-    PrefixPath(Name* name);
-    virtual ~PrefixPath();
-    virtual void Dump() const;
-};
 
 }
 }

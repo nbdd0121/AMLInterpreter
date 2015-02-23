@@ -17,7 +17,7 @@ class Value {
     Value();
     virtual ~Value();
 
-    virtual void Dump() const = 0;
+    virtual void Dump(int ident) const = 0;
 };
 
 }

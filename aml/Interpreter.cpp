@@ -10,7 +10,8 @@ namespace norlit {
 namespace acpi {
 namespace aml {
 
-Interpreter::Interpreter(Bytecode& bc) :bytecode(bc) {
+Interpreter::Interpreter(Bytecode& bc, Scope* root, Scope* current, Name* path)
+    :bytecode(bc), root(root), current(current), path(path) {
 
 }
 
@@ -36,56 +37,57 @@ void Interpreter::ParseNameSeg() {
 
 bool Interpreter::TryParseNameString() {
     if (bytecode.ConsumeIf('\\')) {
-        TryParseNamePath() || unexpected();
-        returnValue = new RootPath((Name*)returnValue);
+        TryParseNamePath(new RootPath()) || unexpected();
         return true;
     } else if (bytecode.PeekBytedata() == '^') {
         ParsePrefixPath();
         return true;
     } else {
-        return TryParseNamePath();
+        return TryParseNamePath(path);
     }
 }
 
 void Interpreter::ParsePrefixPath() {
-    if (bytecode.ConsumeIf('^')) {
-        ParsePrefixPath();
-        returnValue = new PrefixPath((Name*)returnValue);
-    } else {
-        TryParseNamePath() || unexpected();
+    Handle<Name> name = path;
+    while (bytecode.ConsumeIf('^')) {
+        name = name->Parent();
     }
+    TryParseNamePath(name) || unexpected();
 }
 
-bool Interpreter::TryParseNamePath() {
+bool Interpreter::TryParseNamePath(Name* parent) {
     uint8_t peek = bytecode.PeekBytedata();
     switch(peek) {
     case DualNamePrefix: {
         bytecode.Consume();
         ParseNameSeg();
-        Handle<Name> parent = (Name*)returnValue;
+        Handle<Name> name = parent ? new NamePath(parent, (NameSegment*)returnValue) : (Name*)returnValue;
         ParseNameSeg();
-        returnValue = new NamePath(parent, (Name*)returnValue);
+        returnValue = new NamePath(name, (NameSegment*)returnValue);
         return true;
     }
     case MultiNamePrefix: {
         bytecode.Consume();
         uint8_t SegCount = bytecode.NextBytedata();
         ParseNameSeg();
-        Handle<Name> name = (Name*)returnValue;
+        Handle<Name> name = parent ? new NamePath(parent, (NameSegment*)returnValue) : (Name*)returnValue;
         for (int i = 1; i < SegCount; i++) {
             ParseNameSeg();
-            name = new NamePath(name, (Name*)returnValue);
+            name = new NamePath(name, (NameSegment*)returnValue);
         }
         returnValue = name;
         return true;
     }
     case NullName:
         bytecode.Consume();
-        returnValue = nullptr;
+        returnValue = parent;
         return true;
     }
     if (peek >= 'A'&&peek <= 'Z' || peek=='_') {
         ParseNameSeg();
+        if (parent) {
+            returnValue = new NamePath(parent, (NameSegment*)returnValue);
+        }
         return true;
     }
     return false;
@@ -195,34 +197,30 @@ bool Interpreter::tryParseNameSpaceModifierObj() {
 
 void Interpreter::parseDefName() {
     bytecode.NextBytedata();
-    std::cout << "Name(";
     TryParseNameString() || unexpected();
-    returnValue->Dump();
-    std::cout << ",";
+    Handle<Name> name = (Name*)returnValue;
     TryParseDataRefObject() || unexpected();
-    returnValue->Dump();
-    std::cout << ")" << std::endl;
+    name->Put(root, returnValue);
 }
 
 void Interpreter::parseDefScope() {
     bytecode.NextBytedata();
     size_t ptr = bytecode.GetPointer();
     ptr += ParsePkgLength();
-    std::cout << "Scope(";
     TryParseNameString() || unexpected();
-    returnValue->Dump();
+    Handle<Name> name = (Name*)returnValue;
     Bytecode scopeCode = bytecode.Slice(bytecode.GetPointer(), ptr);
-    Interpreter interp(scopeCode);
-    // interp.parseTermList();
+    Interpreter interp(scopeCode, root, current, name);
+    interp.parseTermList();
 
     bytecode.SetPointer(ptr);
-    std::cout << ")" << std::endl;
 }
 
 /* 20.2.5.2 */
 bool Interpreter::TryParseNamedObj() {
     if (bytecode.ConsumeIf(ExtOpPrefix)) {
-
+        printf("Unknown Opcode 5B %x", bytecode.PeekBytedata());
+        exit(0);
     }
     printf("Unknown Opcode %x", bytecode.PeekBytedata());
     exit(0);

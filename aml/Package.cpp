@@ -15,13 +15,13 @@ Package::~Package() {
     // std::cout << "~Package\n";
 }
 
-void Package::Dump() const {
-    std::cout << "Package(" << size << ") {" << std::endl;
+void Package::Dump(int ident) const {
+    printf("Package(%d) {", size);
     for (unsigned i = 0; i < size; i++) {
-        if (i != 0)std::cout << "," << std::endl;
-        array[i]->Dump();
+        printf("\n%*s", ident + 2, "");
+        array[i]->Dump(ident + 2);
     }
-    std::cout << std::endl << "}";
+    printf("\n%*s}", ident,"");
 }
 
 }
