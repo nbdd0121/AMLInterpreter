@@ -11,7 +11,7 @@ using namespace norlit::acpi::util;
 using namespace norlit::acpi::aml;
 
 int main(int argc, char* argv[]) {
-    Bytecode bc = FileReader::readFile("test.aml");
+    Bytecode bc = FileReader::readFile("dsdt.dat");
 
     Handle<Scope> root = new Scope();
     root->Item("_GPE", new Scope());
@@ -21,8 +21,9 @@ int main(int argc, char* argv[]) {
     root->Item("_TZ_", new Scope());
 
 
-    Interpreter interp(bc, root, root, new RootPath());
+    Interpreter interp(bc, root, new RootPath());
     interp.parseTermList();
+    if (!bc.IsEOF())interp.unexpected();
 
     printf("\\ ");
     root->Dump(0);

@@ -13,6 +13,10 @@ Value::Value() {
 Value::~Value() {
 }
 
+bool Value::IsMethod() const {
+    return false;
+}
+
 }
 }
 }

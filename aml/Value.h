@@ -17,6 +17,7 @@ class Value {
     Value();
     virtual ~Value();
 
+    virtual bool IsMethod() const;
     virtual void Dump(int ident) const = 0;
 };
 

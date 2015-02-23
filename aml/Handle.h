@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <cstddef>
-#include "Value.h"
+#include <cassert>
 
 namespace norlit {
 namespace acpi {
@@ -50,6 +50,7 @@ class Handle {
         return (V*)value;
     }
     T* operator->() const {
+        assert(value);
         return value;
     }
     ~Handle() {

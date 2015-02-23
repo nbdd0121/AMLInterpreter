@@ -57,6 +57,10 @@ class Bytecode {
     inline Bytecode Slice(size_t from, size_t to) {
         return Bytecode(bytecodes + from, to - from);
     }
+
+    inline uint8_t* GetRawPointer() {
+        return bytecodes + pointer;
+    }
 };
 
 }

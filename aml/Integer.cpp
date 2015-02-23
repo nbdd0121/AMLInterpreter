@@ -15,7 +15,7 @@ Integer::~Integer() {
 }
 
 void Integer::Dump(int ident) const {
-    std::cout << value;
+    printf("%#x", value);
 }
 
 }
