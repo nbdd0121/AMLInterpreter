@@ -12,22 +12,26 @@ namespace aml {
 
 class Package: public Value {
   private:
-	size_t length;
-	Handle<Value> *entry;
+    size_t length;
+    Handle<Value> *entry;
   public:
-	Package(size_t length, Handle<Value> *entry);
-	virtual ~Package();
-	virtual void Dump(int ident) const override;
+    Package(size_t length, Handle<Value> *entry);
+    virtual ~Package();
+    virtual void Dump(int ident) const override;
+
+    Handle<Value> Item(size_t index) {
+        return entry[index];
+    }
 };
 
 class Buffer: public Value {
   private:
-	size_t length;
-	uint8_t *entry;
+    size_t length;
+    uint8_t *entry;
   public:
-	Buffer(size_t length, uint8_t *entry);
-	virtual ~Buffer();
-	virtual void Dump(int ident) const override;
+    Buffer(size_t length, uint8_t *entry);
+    virtual ~Buffer();
+    virtual void Dump(int ident) const override;
 };
 
 }

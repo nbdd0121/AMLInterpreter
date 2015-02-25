@@ -5,13 +5,19 @@
 #include "Thunk.h"
 #include "Package.h"
 #include "Context.h"
+#include "OSDep.h"
 
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 
-enum {
+#define NORLIT_INTPRETER_REVISION 1
+
+namespace norlit {
+namespace aml {
+
+enum NameChar {
     NullName = 0x00,
     DualNamePrefix = 0x2E,
     MultiNamePrefix = 0x2F,
@@ -19,7 +25,7 @@ enum {
     ParentPrefixChar = '^',
 };
 
-enum {
+enum Opcode {
     ZeroOp = 0x00,
     OneOp = 0x01,
     AliasOp = 0x06,
@@ -66,7 +72,7 @@ enum {
     OnesOp = 0xFF,
 };
 
-enum {
+enum ExtOpcode {
     MutexOp = 0x5B01,
     EventOp = 0x5B02,
 
@@ -83,18 +89,13 @@ enum {
     DataRegionOp = 0x5B88,
 };
 
-#define NORLIT_INTPRETER_REVISION 1
-
-namespace norlit {
-namespace aml {
-
 Interpreter::Interpreter(ByteStream stream, Context* c, bool lazy) : stream(stream), context(c), lazy(lazy) {
 
 }
 
 bool Interpreter::Unexpected() {
     printf("[Opcode %x, %x]", stream.Peek(), stream.Peek(2));
-    exit(0);
+    aml_os_panic("Unexpected or unimplemnted opcode");
     return false;
 }
 

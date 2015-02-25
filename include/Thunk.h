@@ -43,6 +43,4 @@ class Method: public Value {
 }
 }
 
-#include "Context.h"
-
 #endif

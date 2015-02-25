@@ -1,5 +1,6 @@
 #include "Thunk.h"
 #include "Parser.h"
+#include "Context.h"
 
 #include <cstdio>
 #include <cstring>

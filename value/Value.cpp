@@ -1,7 +1,10 @@
 #include "Value.h"
+#include "Integer.h"
+#include "OSDep.h"
 
 #include <iostream>
 #include <cstdio>
+#include <cstdlib>
 
 namespace norlit {
 namespace aml {
@@ -25,8 +28,7 @@ Handle<Value> Value::Resolve() {
 }
 
 Handle<Integer> Value::ToInteger() const {
-    perror("Exception: Invalid type conversion");
-    exit(0);
+    aml_os_panic("Exception: Invalid type conversion");
     return nullptr;
 }
 

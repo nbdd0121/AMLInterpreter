@@ -1,6 +1,7 @@
 #include "Context.h"
 #include "Scope.h"
 #include "Name.h"
+#include "OSDep.h"
 
 #include <cstdio>
 #include <cstring>
@@ -31,8 +32,7 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
         for (int i = 0; i < path->GetSegCount(); i++) {
             Handle<Value> ret = scope->Item(path->GetName(i));
             if (!ret || !ret->IsScope()) {
-                perror("Invalid scope in lookup");
-                exit(0);
+                aml_os_panic("Invalid scope in lookup");
             }
             scope = temp[i] = (Scope*)ret;
         }
@@ -41,8 +41,7 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
                 return temp[i]->Item(name->GetName(0));
             }
         }
-        perror("Unresolved reference");
-        exit(0);
+        aml_os_panic("Unresovled reference");
         /* Name lookup required */
     }
     Handle<Scope> scope = root;
@@ -51,14 +50,12 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
     if (name->GetPrefixCount() != -1) {
         int implicitCount = path->GetSegCount() - name->GetPrefixCount();
         if (implicitCount < 0) {
-            perror("Invalid path in lookup");
-            exit(0);
+            aml_os_panic("Invalid path in lookup");
         }
         for (int i = 0; i < implicitCount; i++) {
             Handle<Value> ret = scope->Item(path->GetName(i));
             if (!ret || !ret->IsScope()) {
-                perror("Invalid scope in lookup");
-                exit(0);
+                aml_os_panic("Invalid path in lookup");
             }
             scope = (Scope*)ret;
         }
@@ -71,8 +68,7 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
     for (int i = 0; i < name->GetSegCount() - 1; i++) {
         Handle<Value> ret = scope->Item(name->GetName(i));
         if (!ret || !ret->IsScope()) {
-            perror("Invalid scope in lookup");
-            exit(0);
+            aml_os_panic("Invalid path in lookup");
         }
         scope = (Scope*)ret;
     }
@@ -81,8 +77,7 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
 
 void Context::Put(Name* name, Value* val, bool lookup) {
     if (name->GetSegCount() <= 0) {
-        perror("Unexpected null name");
-        exit(0);
+        aml_os_panic("Unexpected null name");
     }
     if (lookup && name->GetPrefixCount() == 0 && name->GetSegCount() == 1) {
         assert(0);
@@ -94,14 +89,12 @@ void Context::Put(Name* name, Value* val, bool lookup) {
     if (name->GetPrefixCount() != -1) {
         int implicitCount = path->GetSegCount() - name->GetPrefixCount();
         if (implicitCount < 0) {
-            perror("Invalid path in lookup");
-            exit(0);
+            aml_os_panic("Invalid path in lookup");
         }
         for (int i = 0; i < implicitCount; i++) {
             Handle<Value> ret = scope->Item(path->GetName(i));
             if (!ret || !ret->IsScope()) {
-                perror("Invalid scope in lookup");
-                exit(0);
+                aml_os_panic("Invalid path in lookup");
             }
             scope = (Scope*)ret;
         }
@@ -109,8 +102,7 @@ void Context::Put(Name* name, Value* val, bool lookup) {
     for (int i = 0; i < name->GetSegCount() - 1; i++) {
         Handle<Value> ret = scope->Item(name->GetName(i));
         if (!ret || !ret->IsScope()) {
-            perror("Invalid scope in lookup");
-            exit(0);
+            aml_os_panic("Invalid scope in lookup");
         }
         scope = (Scope*)ret;
     }
@@ -130,8 +122,7 @@ Handle<Name> Context::Normalize(Name* name, bool lookup) {
     }
     int implicitCount = path->GetSegCount() - name->GetPrefixCount();
     if (implicitCount < 0) {
-        perror("Invalid path in normalization");
-        exit(0);
+        aml_os_panic("Invalid path in normalization");
     }
     int totalCount = implicitCount + name->GetSegCount();
     uint32_t* names = new uint32_t[totalCount];

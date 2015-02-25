@@ -31,6 +31,4 @@ class Value {
 }
 }
 
-#include "Integer.h"
-
 #endif
