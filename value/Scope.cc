@@ -1,7 +1,6 @@
 #include "Scope.h"
 #include "Name.h"
 
-#include <iostream>
 #include <cassert>
 #include <cstring>
 #include <cstdio>

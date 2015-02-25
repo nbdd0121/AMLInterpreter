@@ -2,7 +2,6 @@
 #include "Integer.h"
 #include "OSDep.h"
 
-#include <iostream>
 #include <cstdio>
 #include <cstdlib>
 
