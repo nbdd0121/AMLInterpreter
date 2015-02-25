@@ -41,7 +41,7 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
                 return temp[i]->Item(name->GetName(0));
             }
         }
-        aml_os_panic("Unresovled reference");
+        return root->Item(name->GetName(0));
         /* Name lookup required */
     }
     Handle<Scope> scope = root;

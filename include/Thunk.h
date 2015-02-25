@@ -33,6 +33,7 @@ class Method: public Value {
   public:
     Method(Context *ctx, ByteStream data, uint8_t flags);
     virtual ~Method();
+    virtual bool IsMethod() const override;
     virtual void Dump(int ident) const override;
 
     uint8_t GetArgumentCount() const {

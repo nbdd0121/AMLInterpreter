@@ -1,5 +1,5 @@
-#ifndef NORLIT_AML_PARSER_H
-#define NORLIT_AML_PARSER_H
+#ifndef NORLIT_AML_INTERPRETER_H
+#define NORLIT_AML_INTERPRETER_H
 
 #include "ByteStream.h"
 #include "Handle.h"
@@ -19,9 +19,10 @@ class Interpreter {
     ByteStream stream;
     Handle<Context> context;
     Handle<Value> return_;
+    bool lazy;
 
     uint16_t PeekOp();
-    bool lazy;
+    void GetReference();
   public:
     Interpreter(ByteStream stream, Context* ctx, bool lazy = true);
 
@@ -34,6 +35,9 @@ class Interpreter {
     bool TryParseNameSeg(uint32_t& ret);
     bool TryParseNamePath(int& len, uint32_t*& ret);
     bool TryParseNameString();
+    bool TryParseSimpleName();
+    bool TryParseSuperName();
+    void ParseTarget();
 
     /* 20.2.3 Data Objects Encoding */
     bool TryParseComputationalData();
@@ -85,16 +89,59 @@ class Interpreter {
     }
 
     /* 20.2.5.4 */
-    bool TryParseType2Opcode() {
-        return false;
-    }
-
+    bool TryParseType2Opcode();
+    void ParseDefAcquire();
+    void ParseDefAdd();
+    void ParseDefAnd();
     bool TryParseDefBuffer();
+    void ParseDefConcat();
+    void ParseDefConcatRes();
+    void ParseDefCondRefOf();
+    void ParseDefCopyObject();
+    void ParseDefDecrement();
+    void ParseDefDerefOf();
+    void ParseDefDivide();
+    void ParseDefFindSetLeftBit();
+    void ParseDefFindSetRightBit();
+    void ParseDefFromBCD();
+    void ParseDefIncrement();
+    void ParseDefIndex();
+    void ParseDefLAnd();
+    void ParseDefLEqual();
+    void ParseDefLGreater();
+    void ParseDefLGreaterEqual();
+    void ParseDefLLess();
+    void ParseDefLLessEqual();
+    void ParseDefMid();
+    void ParseDefLNot();
+    void ParseDefLNotEqual();
+    void ParseDefLoadTable();
+    void ParseDefLOr();
+    void ParseDefMatch();
+    void ParseDefMod();
+    void ParseDefMultiply();
+    void ParseDefNAnd();
+    void ParseDefNOr();
+    void ParseDefNot();
+    void ParseDefObjectType();
+    void ParseDefOr();
     bool TryParseDefPackage();
-
-    bool TryParseDefVarPackage() {
-        return false;
-    }
+    bool TryParseDefVarPackage();
+    void ParseDefRefOf();
+    void ParseDefShiftLeft();
+    void ParseDefShiftRight();
+    void ParseDefSizeOf();
+    void ParseDefStore();
+    void ParseDefSubtract();
+    void ParseDefTimer();
+    void ParseDefToBCD();
+    void ParseDefToBuffer();
+    void ParseDefToDecimalString();
+    void ParseDefToHexString();
+    void ParseDefToInteger();
+    void ParseDefToString();
+    void ParseDefWait();
+    void ParseDefXOr();
 
     /* 20.2.6.1 Arg Objects Encoding */
     bool TryParseArgObj();

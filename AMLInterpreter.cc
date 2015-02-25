@@ -1,5 +1,5 @@
 #include "ByteStream.h"
-#include "Parser.h"
+#include "Interpreter.h"
 #include "Name.h"
 #include "Scope.h"
 #include "Context.h"
@@ -28,7 +28,7 @@ static ByteStream readFile(const char* name) {
 }
 
 int main(int argc, char* argv[]) {
-    ByteStream bytecode = readFile("dsdt.aml");
+    ByteStream bytecode = readFile("dsdt.dat");
 
     Handle<Scope> root = new Scope();
     root->Item("_GPE", new Scope());

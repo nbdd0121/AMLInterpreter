@@ -1,5 +1,5 @@
 #include "Thunk.h"
-#include "Parser.h"
+#include "Interpreter.h"
 #include "Context.h"
 
 #include <cstdio>
@@ -38,6 +38,10 @@ Method::~Method() {}
 
 void Method::Dump(int ident) const {
     printf("Method[Arg = %d]", GetArgumentCount());
+}
+
+bool Method::IsMethod() const {
+    return true;
 }
 
 }

@@ -22,6 +22,10 @@ bool Value::IsResolved() const {
     return true;
 }
 
+bool Value::IsMethod() const {
+    return false;
+}
+
 Handle<Value> Value::Resolve() {
     return this;
 }

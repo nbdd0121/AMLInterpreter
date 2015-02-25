@@ -1,4 +1,4 @@
-#include "Parser.h"
+#include "Interpreter.h"
 #include "Name.h"
 #include "Integer.h"
 #include "String_.h"
@@ -41,6 +41,7 @@ enum Opcode {
     ScopeOp = 0x10,
     BufferOp = 0x11,
     PackageOp = 0x12,
+    VarPackageOp = 0x13,
 
     MethodOp = 0x14,
 
@@ -62,12 +63,52 @@ enum Opcode {
     Arg5Op = 0x6D,
     Arg6Op = 0x6E,
 
+    StoreOp = 0x70,
+    RefOfOp = 0x71,
+    AddOp = 0x72,
+    ConcatOp = 0x73,
+    SubtractOp = 0x74,
+    IncrementOp = 0x75,
+    DecrementOp = 0x76,
+    MultiplyOp = 0x77,
+    DivideOp = 0x78,
+    ShiftLeftOp = 0x79,
+    ShiftRightOp = 0x7A,
+    AndOp = 0x7B,
+    NandOp = 0x7C,
+    OrOp = 0x7D,
+    NorOp = 0x7E,
+    XorOp = 0x7F,
+    NotOp = 0x80,
+    FindSetLeftBitOp = 0x81,
+    FindSetRightBitOp = 0x82,
+    DerefOfOp = 0x83,
+    ConcatResOp = 0x84,
+    ModOp = 0x85,
+
+    SizeOfOp = 0x87,
+    IndexOp = 0x88,
+    MatchOp = 0x89,
     CreateDWordFieldOp = 0x8A,
     CreateWordFieldOp = 0x8B,
     CreateByteFieldOp = 0x8C,
     CreateBitFieldOp = 0x8D,
-
+    ObjectTypeOp = 0x8E,
     CreateQWordFieldOp = 0x8F,
+    LandOp = 0x90,
+    LorOp = 0x91,
+    LnotOp = 0x92,
+    LequalOp = 0x93,
+    LgreaterOp = 0x94,
+    LlessOp = 0x95,
+    ToBufferOp = 0x96,
+    ToDecimalStringOp = 0x97,
+    ToHexStringOp = 0x98,
+    ToIntegerOp = 0x99,
+    ToStringOp = 0x9C,
+
+    CopyObjectOp = 0x9D,
+    MidOp = 0x9E,
 
     OnesOp = 0xFF,
 };
@@ -76,7 +117,20 @@ enum ExtOpcode {
     MutexOp = 0x5B01,
     EventOp = 0x5B02,
 
+    CondRefOfOp = 0x5B12,
+
+    LoadTableOp = 0x5B1F,
+
+    AcquireOp = 0x5B23,
+
+    WaitOp = 0x5B25,
+
+    FromBCDOp = 0x5B28,
+    ToBCDOp = 0x5B29,
+
     RevisionOp = 0x5B30,
+
+    TimerOp = 0x5B33,
 
     OpRegionOp = 0x5B80,
     FieldOp = 0x5B81,
@@ -94,6 +148,7 @@ Interpreter::Interpreter(ByteStream stream, Context* c, bool lazy) : stream(stre
 }
 
 bool Interpreter::Unexpected() {
+    context->GetRoot()->Dump(0);
     printf("[Opcode %x, %x]", stream.Peek(), stream.Peek(2));
     aml_os_panic("Unexpected or unimplemnted opcode");
     return false;
@@ -105,6 +160,13 @@ uint16_t Interpreter::PeekOp() {
         return ExtOpPrefix << 8 | stream.Peek(2);
     } else {
         return peek;
+    }
+}
+
+void Interpreter::GetReference() {
+    return_ = context->Get((Name*)return_, true);
+    if (!return_) {
+        aml_os_panic("Unresolve reference");
     }
 }
 
@@ -160,6 +222,10 @@ bool Interpreter::TryParseNamePath(int& len, uint32_t*& ret) {
 bool Interpreter::TryParseNameString() {
     int len;
     uint32_t *val;
+    /* Patch: This is used to distinguish between NullName and ZeroOp */
+    if (stream.Peek() == NullName) {
+        return false;
+    }
     if (stream.ConsumeIf(RootChar)) {
         TryParseNamePath(len, val) || Unexpected();
         return_ = new Name(-1, len, val);
@@ -178,6 +244,24 @@ bool Interpreter::TryParseNameString() {
     }
     return_ = new Name(0, len, val);
     return true;
+}
+
+bool Interpreter::TryParseSimpleName() {
+    return TryParseNameString() || TryParseArgObj() || TryParseLocalObj();
+}
+
+bool Interpreter::TryParseSuperName() {
+    return TryParseSimpleName(); // TODO DebugObj, Type6Obj
+}
+
+void Interpreter::ParseTarget() {
+    if (!TryParseSuperName()) {
+        if (stream.ConsumeIf(NullName)) {
+            return_ = nullptr;
+        } else {
+            Unexpected();
+        }
+    }
 }
 
 /* 20.2.3 Data Objects Encoding */
@@ -295,7 +379,22 @@ void Interpreter::ParseTermList() {
 }
 
 bool Interpreter::TryParseTermArg() {
-    return TryParseType2Opcode() | TryParseDataObject() | TryParseArgObj() | TryParseLocalObj();
+    return TryParseType2Opcode() || TryParseDataObject() || TryParseArgObj() || TryParseLocalObj();
+}
+
+bool Interpreter::TryParseMethodInvocation() {
+    if (!TryParseNameString()) {
+        return false;
+    }
+    Handle<Value> obj = context->Get((Name*)return_, true);
+    if (!obj)
+        aml_os_panic("Unresovled reference");
+    if (!obj->IsMethod()) {
+        return_ = obj;
+    } else {
+        Unexpected();
+    }
+    return true;
 }
 
 bool Interpreter::TryParseObject() {
@@ -325,7 +424,14 @@ bool Interpreter::TryParseNameSpaceModifierObj() {
 }
 
 void Interpreter::ParseDefAlias() {
-    assert(0);
+    stream.Next();
+    TryParseNameString() || Unexpected();
+    GetReference();
+    Handle<Value> obj = return_;
+
+    TryParseNameString() || Unexpected();
+    context->Put((Name*)return_, obj);
+    return_ = nullptr;
 }
 
 void Interpreter::ParseDefName() {
@@ -512,7 +618,179 @@ void Interpreter::ParseDefThermalZone() {
     Unexpected();
 }
 
+bool Interpreter::TryParseType2Opcode() {
+    switch (PeekOp()) {
+    case AcquireOp:
+        ParseDefAcquire();
+        break;
+    case AddOp:
+        ParseDefAdd();
+        break;
+    case AndOp:
+        ParseDefAnd();
+        break;
+    case BufferOp:
+        TryParseDefBuffer() || Unexpected();
+        break;
+    case ConcatOp:
+        ParseDefConcat();
+        break;
+    case ConcatResOp:
+        ParseDefConcatRes();
+        break;
+    case CondRefOfOp:
+        ParseDefCondRefOf();
+        break;
+    case CopyObjectOp:
+        ParseDefCopyObject();
+        break;
+    case DecrementOp:
+        ParseDefDecrement();
+        break;
+    case DerefOfOp:
+        ParseDefDerefOf();
+        break;
+    case DivideOp:
+        ParseDefDivide();
+        break;
+    case FindSetLeftBitOp:
+        ParseDefFindSetLeftBit();
+        break;
+    case FindSetRightBitOp:
+        ParseDefFindSetRightBit();
+        break;
+    case FromBCDOp:
+        ParseDefFromBCD();
+        break;
+    case IncrementOp:
+        ParseDefIncrement();
+        break;
+    case IndexOp:
+        ParseDefIndex();
+        break;
+    case LandOp:
+        ParseDefLAnd();
+        break;
+    case LequalOp:
+        ParseDefLEqual();
+        break;
+    case LgreaterOp:
+        ParseDefLGreater();
+        break;
+    case LlessOp:
+        ParseDefLLess();
+        break;
+    case MidOp:
+        ParseDefMid();
+        break;
+    case LnotOp:
+        ParseDefLNot();
+        break;
+    case LoadTableOp:
+        ParseDefLoadTable();
+        break;
+    case LorOp:
+        ParseDefLOr();
+        break;
+    case MatchOp:
+        ParseDefMatch();
+        break;
+    case ModOp:
+        ParseDefMod();
+        break;
+    case MultiplyOp:
+        ParseDefMultiply();
+        break;
+    case NandOp:
+        ParseDefNAnd();
+        break;
+    case NorOp:
+        ParseDefNOr();
+        break;
+    case NotOp:
+        ParseDefNot();
+        break;
+    case ObjectTypeOp:
+        ParseDefObjectType();
+        break;
+    case OrOp:
+        ParseDefOr();
+        break;
+    case PackageOp:
+        TryParseDefPackage() || Unexpected();
+        break;
+    case VarPackageOp:
+        TryParseDefVarPackage() || Unexpected();
+        break;
+    case RefOfOp:
+        ParseDefRefOf();
+        break;
+    case ShiftLeftOp:
+        ParseDefShiftLeft();
+        break;
+    case ShiftRightOp:
+        ParseDefShiftRight();
+        break;
+    case SizeOfOp:
+        ParseDefSizeOf();
+        break;
+    case StoreOp:
+        ParseDefStore();
+        break;
+    case SubtractOp:
+        ParseDefSubtract();
+        break;
+    case TimerOp:
+        ParseDefTimer();
+        break;
+    case ToBCDOp:
+        ParseDefToBCD();
+        break;
+    case ToBufferOp:
+        ParseDefToBuffer();
+        break;
+    case ToDecimalStringOp:
+        ParseDefToDecimalString();
+        break;
+    case ToHexStringOp:
+        ParseDefToHexString();
+        break;
+    case ToIntegerOp:
+        ParseDefToInteger();
+        break;
+    case ToStringOp:
+        ParseDefToString();
+        break;
+    case WaitOp:
+        ParseDefWait();
+        break;
+    case XorOp:
+        ParseDefXOr();
+        break;
+    default:
+        return TryParseMethodInvocation();
+    }
+    return true;
+}
 
+void Interpreter::ParseDefAcquire() {
+    Unexpected();
+}
+
+void Interpreter::ParseDefAdd() {
+    stream.Consume();
+    TryParseTermArg() || Unexpected();
+    Handle<Integer> left = return_->ToInteger();
+    TryParseTermArg() || Unexpected();
+    Handle<Integer> result = new Integer(left->GetValue() + return_->ToInteger()->GetValue());
+    ParseTarget();
+    assert(!return_);
+    return_ = result;
+}
+
+void Interpreter::ParseDefAnd() {
+    Unexpected();
+}
 
 bool Interpreter::TryParseDefBuffer() {
     /* BufferOp */
@@ -541,6 +819,100 @@ bool Interpreter::TryParseDefBuffer() {
 
     stream.SetPointer(pointer + pkgLength);
     return true;
+}
+
+void Interpreter::ParseDefConcat() {
+    Unexpected();
+}
+void Interpreter::ParseDefConcatRes() {
+    Unexpected();
+}
+void Interpreter::ParseDefCondRefOf() {
+    Unexpected();
+}
+void Interpreter::ParseDefCopyObject() {
+    Unexpected();
+}
+void Interpreter::ParseDefDecrement() {
+    Unexpected();
+}
+void Interpreter::ParseDefDerefOf() {
+    Unexpected();
+}
+void Interpreter::ParseDefDivide() {
+    Unexpected();
+}
+void Interpreter::ParseDefFindSetLeftBit() {
+    Unexpected();
+}
+void Interpreter::ParseDefFindSetRightBit() {
+    Unexpected();
+}
+void Interpreter::ParseDefFromBCD() {
+    Unexpected();
+}
+void Interpreter::ParseDefIncrement() {
+    Unexpected();
+}
+void Interpreter::ParseDefIndex() {
+    Unexpected();
+}
+void Interpreter::ParseDefLAnd() {
+    Unexpected();
+}
+void Interpreter::ParseDefLEqual() {
+    Unexpected();
+}
+void Interpreter::ParseDefLGreater() {
+    Unexpected();
+}
+void Interpreter::ParseDefLGreaterEqual() {
+    Unexpected();
+}
+void Interpreter::ParseDefLLess() {
+    Unexpected();
+}
+void Interpreter::ParseDefLLessEqual() {
+    Unexpected();
+}
+void Interpreter::ParseDefMid() {
+    Unexpected();
+}
+void Interpreter::ParseDefLNot() {
+    Unexpected();
+}
+void Interpreter::ParseDefLNotEqual() {
+    Unexpected();
+}
+void Interpreter::ParseDefLoadTable() {
+    Unexpected();
+}
+void Interpreter::ParseDefLOr() {
+    Unexpected();
+}
+void Interpreter::ParseDefMatch() {
+    Unexpected();
+}
+void Interpreter::ParseDefMod() {
+    Unexpected();
+}
+void Interpreter::ParseDefMultiply() {
+    Unexpected();
+}
+void Interpreter::ParseDefNAnd() {
+    Unexpected();
+}
+void Interpreter::ParseDefNOr() {
+    Unexpected();
+}
+void Interpreter::ParseDefNot() {
+    Unexpected();
+}
+void Interpreter::ParseDefObjectType() {
+    Unexpected();
+}
+void Interpreter::ParseDefOr() {
+    Unexpected();
 }
 
 bool Interpreter::TryParseDefPackage() {
@@ -576,6 +948,56 @@ bool Interpreter::TryParseDefPackage() {
         assert(stream.GetPointer() == pointer + pkgLength);
     }
     return true;
+}
+
+bool Interpreter::TryParseDefVarPackage() {
+    return false;
+}
+
+void Interpreter::ParseDefRefOf() {
+    Unexpected();
+}
+void Interpreter::ParseDefShiftLeft() {
+    Unexpected();
+}
+void Interpreter::ParseDefShiftRight() {
+    Unexpected();
+}
+void Interpreter::ParseDefSizeOf() {
+    Unexpected();
+}
+void Interpreter::ParseDefStore() {
+    Unexpected();
+}
+void Interpreter::ParseDefSubtract() {
+    Unexpected();
+}
+void Interpreter::ParseDefTimer() {
+    Unexpected();
+}
+void Interpreter::ParseDefToBCD() {
+    Unexpected();
+}
+void Interpreter::ParseDefToBuffer() {
+    Unexpected();
+}
+void Interpreter::ParseDefToDecimalString() {
+    Unexpected();
+}
+void Interpreter::ParseDefToHexString() {
+    Unexpected();
+}
+void Interpreter::ParseDefToInteger() {
+    Unexpected();
+}
+void Interpreter::ParseDefToString() {
+    Unexpected();
+}
+void Interpreter::ParseDefWait() {
+    Unexpected();
+}
+void Interpreter::ParseDefXOr() {
+    Unexpected();
 }
 
 /* 20.2.6.1 Arg Objects Encoding */

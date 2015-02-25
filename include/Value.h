@@ -20,6 +20,7 @@ class Value {
 
     virtual bool IsResolved() const;
     virtual bool IsScope() const;
+    virtual bool IsMethod() const;
     virtual Handle<Value> Resolve();
 
     virtual Handle<Integer> ToInteger() const;
