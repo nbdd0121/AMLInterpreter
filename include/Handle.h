@@ -1,34 +1,20 @@
-#ifndef NORLIT_ACPI_AML_HANDLE_H
-#define NORLIT_ACPI_AML_HANDLE_H
+#ifndef NORLIT_AML_HANDLE_H
+#define NORLIT_AML_HANDLE_H
 
-#include <cstdint>
-#include <cstddef>
 #include <cassert>
 
 namespace norlit {
-namespace acpi {
 namespace aml {
 
 template<typename T>
 class Handle {
   private:
     T* value;
-    void Retain() {
-        if (value != nullptr) {
-            value->refCount++;
-        }
-    }
-    void Release() {
-        if (value != nullptr) {
-            if (--value->refCount == 0) {
-                delete value;
-            }
-        }
-    }
   public:
     Handle() :value(nullptr) {}
     Handle(T* val) :value(val) {
-        Retain();
+        if (val)
+            val->Retain();
     }
     Handle(const Handle& val) :Handle(val.value) {}
     Handle(Handle&& val) :value(val.value) {
@@ -38,9 +24,9 @@ class Handle {
         operator =(val.value);
     }
     void operator =(T* val) {
-        Release();
+        if (value) value->Release();
         value = val;
-        Retain();
+        if (value) value->Retain();
     }
     operator T*() const {
         return value;
@@ -54,11 +40,10 @@ class Handle {
         return value;
     }
     ~Handle() {
-        Release();
+        if (value) value->Release();
     }
 };
 
-}
 }
 }
 
