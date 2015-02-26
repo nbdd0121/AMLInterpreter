@@ -38,9 +38,12 @@ Handle<Value> Context::Get(Name* name, bool lookup) {
         }
         for (int i = path->GetSegCount() - 1; i >= 0; i--) {
             if (temp[i]->Has(name->GetName(0))) {
-                return temp[i]->Item(name->GetName(0));
+                scope = temp[i];
+                delete[] temp;
+                return scope->Item(name->GetName(0));
             }
         }
+        delete[] temp;
         return root->Item(name->GetName(0));
         /* Name lookup required */
     }

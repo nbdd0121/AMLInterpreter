@@ -26,7 +26,7 @@ class Interpreter {
   public:
     Interpreter(ByteStream stream, Context* ctx, bool lazy = true);
 
-    bool Unexpected();
+    bool Unexpected(const char*);
     Handle<Value> GetReturnValue() {
         return return_;
     }
@@ -84,9 +84,24 @@ class Interpreter {
 
 
     /* 20.2.5.3 */
-    bool TryParseType1Opcode() {
-        return false;
-    }
+    bool TryParseType1Opcode();
+    void ParseDefBreak();
+    void ParseDefBreakPoint();
+    void ParseDefContinue();
+    void ParseDefFatal();
+    void ParseDefIfElse();
+    void ParseDefLoad();
+    void ParseDefNoop();
+    void ParseDefNotify();
+    void ParseDefRelease();
+    void ParseDefReset();
+    void ParseDefReturn();
+    void ParseDefSignal();
+    void ParseDefSleep();
+    void ParseDefStall();
+    void ParseDefUnload();
+    void ParseDefWhile();
+
 
     /* 20.2.5.4 */
     bool TryParseType2Opcode();

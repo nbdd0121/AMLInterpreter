@@ -27,10 +27,12 @@ static ByteStream readFile(const char* name) {
     }
 }
 
+Handle<Scope> root;
+
 int main(int argc, char* argv[]) {
     ByteStream bytecode = readFile("dsdt.dat");
 
-    Handle<Scope> root = new Scope();
+    root = new Scope();
     root->Item("_GPE", new Scope());
     root->Item("_PR_", new Scope());
     root->Item("_SB_", new Scope());

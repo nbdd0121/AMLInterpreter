@@ -59,7 +59,7 @@ bool Scope::Has(uint32_t id) {
     return false;
 }
 
-Handle<Value> Scope::Item(uint32_t id) {
+Handle<Value> Scope::Item(uint32_t id) const {
     Node *n = node;
     while (n) {
         if (n->name == id) {
@@ -68,6 +68,10 @@ Handle<Value> Scope::Item(uint32_t id) {
         n = n->next;
     }
     return nullptr;
+}
+
+Handle<Value> Scope::Item(const char* id) const {
+    return Item(Name::PackNameSegment(id));
 }
 
 void Scope::Item(uint32_t id, Value *val) {

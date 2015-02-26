@@ -21,7 +21,11 @@ void Package::Dump(int ident) const {
             printf(",");
         }
         printf("\n%*s", ident + 2, "");
-        entry[i]->Dump(ident + 2);
+        if (entry[i]->IsScope()) {
+            printf("[Ref]");
+        } else {
+            entry[i]->Dump(ident + 2);
+        }
     }
     printf("\n%*s}", ident, "");
 }

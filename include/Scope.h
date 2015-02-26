@@ -31,7 +31,8 @@ class Scope : public Value {
     virtual bool IsScope() const override;
 
     bool Has(uint32_t id);
-    Handle<Value> Item(uint32_t id);
+    Handle<Value> Item(uint32_t id) const;
+    Handle<Value> Item(const char* id) const;
     void Item(uint32_t id, Value *val);
     void Item(const char* id, Value *val);
 };
