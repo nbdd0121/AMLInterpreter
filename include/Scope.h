@@ -41,6 +41,11 @@ class Device : public Scope {
     virtual const char* GetTypeName() const override;
 };
 
+class ThermalZone : public Scope {
+  protected:
+    virtual const char* GetTypeName() const override;
+};
+
 }
 }
 

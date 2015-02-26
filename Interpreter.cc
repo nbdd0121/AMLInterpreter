@@ -5,6 +5,7 @@
 #include "Thunk.h"
 #include "Package.h"
 #include "Context.h"
+#include "OpRegion.h"
 #include "OSDep.h"
 
 #include <cassert>
@@ -166,6 +167,7 @@ uint16_t Interpreter::PeekOp() {
 void Interpreter::GetReference() {
     return_ = context->Get((Name*)return_, true);
     if (!return_) {
+        context->GetRoot()->Dump(0);
         aml_os_panic("Unresolve reference");
     }
 }
@@ -519,15 +521,26 @@ bool Interpreter::TryParseNamedObj() {
 void Interpreter::ParseDefBankField() {
     Unexpected();
 }
+
 void Interpreter::ParseDefCreateBitField() {
     Unexpected();
 }
 void Interpreter::ParseDefCreateByteField() {
-    Unexpected();
+    printf("CreateByteField()");
+    stream.Consume();
+    TryParseTermArg() || Unexpected();
+    TryParseTermArg() || Unexpected();
+    TryParseNameString() || Unexpected();
 }
+
 void Interpreter::ParseDefCreateDWordField() {
-    Unexpected();
+    printf("CreateDWordField()");
+    stream.Consume();
+    TryParseTermArg() || Unexpected();
+    TryParseTermArg() || Unexpected();
+    TryParseNameString() || Unexpected();
 }
+
 void Interpreter::ParseDefCreateField() {
     Unexpected();
 }
@@ -535,7 +548,11 @@ void Interpreter::ParseDefCreateQWordField() {
     Unexpected();
 }
 void Interpreter::ParseDefCreateWordField() {
-    Unexpected();
+    printf("CreateWordField()");
+    stream.Consume();
+    TryParseTermArg() || Unexpected();
+    TryParseTermArg() || Unexpected();
+    TryParseNameString() || Unexpected();
 }
 void Interpreter::ParseDefDataRegion() {
     Unexpected();
@@ -559,14 +576,46 @@ void Interpreter::ParseDefDevice() {
 void Interpreter::ParseDefEvent() {
     Unexpected();
 }
+
 void Interpreter::ParseDefField() {
     stream.Consume(2);
     printf("Field()\n");
     size_t pointer = stream.GetPointer();
     size_t length = ParsePkgLength();
 
+    TryParseNameString() || Unexpected();
+    Handle<OpRegion> region = (OpRegion*)(context->Get((Name*)return_, true));
+
+    uint8_t FieldFlags = stream.Next();
+    uint64_t offset = 0;
+
+    while (stream.GetPointer() < pointer + length) {
+        switch (stream.Peek()) {
+        case 0x00: {
+            stream.Consume();
+            size_t len = ParsePkgLength();
+            offset += len;
+            break;
+        }
+        case 0x01:
+        case 0x02:
+            Unexpected();
+        default: {
+            TryParseNameString() || Unexpected();
+            Handle<Name> name = (Name*)return_;
+            if (name->GetPrefixCount() != 0 || name->GetSegCount() != 1)
+                Unexpected();
+            size_t len = ParsePkgLength();
+            context->Put(name, new RegionField(region, offset, len, FieldFlags));
+            offset += len;
+            break;
+        }
+        }
+    }
+
     stream.SetPointer(pointer + length);
 }
+
 void Interpreter::ParseDefIndexField() {
     Unexpected();
 }
@@ -591,33 +640,75 @@ void Interpreter::ParseDefMethod() {
 
 
 void Interpreter::ParseDefMutex() {
-    Unexpected();
+    printf("Mutex()\n");
+    stream.Consume(2);
+
+    TryParseNameString() || Unexpected();
+    Handle<Name> name = context->Normalize((Name*)return_);
+
+    uint8_t SyncFlags = stream.Next();
+
+    context->Put(name, new Scope()); // TODO Mutex
 }
+
 void Interpreter::ParseDefOpRegion() {
     stream.Consume(2);
-    printf("OpRegion(");
+
     TryParseNameString() || Unexpected();
     Handle<Name> name = (Name*)return_;
-    name->Dump(0);
-    printf(" ");
+
     uint8_t RegionSpace = stream.Next();
+
     TryParseTermArg() || Unexpected();
-    return_->Dump(0);
-    printf(" ");
+    uint64_t offset = return_->ToInteger()->GetValue();
+
     TryParseTermArg() || Unexpected();
-    return_->Dump(0);
-    printf(")\n");
+    uint64_t length = return_->ToInteger()->GetValue();
+
+    context->Put(name, new OpRegion(RegionSpace, offset, length));
+
+    return_ = nullptr;
 }
+
 void Interpreter::ParseDefPowerRes() {
     Unexpected();
 }
 void Interpreter::ParseDefProcessor() {
-    Unexpected();
-}
-void Interpreter::ParseDefThermalZone() {
-    Unexpected();
+    printf("Processor()\n");
+    stream.Consume(2);
+    size_t pointer = stream.GetPointer();
+    size_t pkgLength = ParsePkgLength();
+
+    TryParseNameString() || Unexpected();
+    Handle<Name> name = context->Normalize((Name*)return_);
+    context->Put(name, new Scope()); // TODO Processor
+
+    uint8_t ProcessorID = stream.Next();
+    stream.Consume(4); // TODO DWord Data
+    uint8_t PblkLen = stream.Next();
+
+    Interpreter parser(stream.Slice(stream.GetPointer(), pointer + pkgLength), new Context(context->GetRoot(), name));
+    parser.ParseObjList();
+
+    stream.SetPointer(pointer + pkgLength);
 }
 
+void Interpreter::ParseDefThermalZone() {
+    stream.Consume(2);
+    size_t pointer = stream.GetPointer();
+    size_t pkgLength = ParsePkgLength();
+
+    TryParseNameString() || Unexpected();
+    Handle<Name> name = context->Normalize((Name*)return_);
+    context->Put(name, new ThermalZone());
+
+    Interpreter parser(stream.Slice(stream.GetPointer(), pointer + pkgLength), new Context(context->GetRoot(), name));
+    parser.ParseObjList();
+
+    stream.SetPointer(pointer + pkgLength);
+}
+
+/* 20.2.5.4 */
 bool Interpreter::TryParseType2Opcode() {
     switch (PeekOp()) {
     case AcquireOp:
@@ -957,9 +1048,18 @@ bool Interpreter::TryParseDefVarPackage() {
 void Interpreter::ParseDefRefOf() {
     Unexpected();
 }
+
 void Interpreter::ParseDefShiftLeft() {
-    Unexpected();
+    stream.Consume();
+    TryParseTermArg() || Unexpected();
+    Handle<Integer> left = return_->ToInteger();
+    TryParseTermArg() || Unexpected();
+    Handle<Integer> result = new Integer(left->GetValue() << return_->ToInteger()->GetValue());
+    ParseTarget();
+    assert(!return_);
+    return_ = result;
 }
+
 void Interpreter::ParseDefShiftRight() {
     Unexpected();
 }

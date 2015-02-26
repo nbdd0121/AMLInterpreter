@@ -94,5 +94,9 @@ const char* Device::GetTypeName() const {
     return "Device";
 }
 
+const char* ThermalZone::GetTypeName() const {
+    return "ThermalZone";
+}
+
 }
 }
