@@ -195,16 +195,16 @@ void Interpreter::GetReference() {
 bool Interpreter::TryParseNameSeg(uint32_t& ret) {
     uint8_t* pointer = stream.GetRawPointer();
     uint8_t a = stream.Peek();
-    if (!(a >= 'A'&&a <= 'Z' || a == '_')) {
+    if (!((a >= 'A'&&a <= 'Z') || a == '_')) {
         return false;
     }
     stream.Consume();
     uint8_t b = stream.Next();
-    b >= 'A'&&b <= 'Z' || b >= '0'&&b <= '9' || b == '_' || Unexpected();
+    (b >= 'A'&&b <= 'Z') || (b >= '0'&&b <= '9') || b == '_' || Unexpected();
     uint8_t c = stream.Next();
-    c >= 'A'&&c <= 'Z' || c >= '0'&&c <= '9' || c == '_' || Unexpected();
+    (c >= 'A'&&c <= 'Z') || (c >= '0'&&c <= '9') || c == '_' || Unexpected();
     uint8_t d = stream.Next();
-    d >= 'A'&&d <= 'Z' || d >= '0'&&d <= '9' || d == '_' || Unexpected();
+    (d >= 'A'&&d <= 'Z') || (d >= '0'&&d <= '9') || d == '_' || Unexpected();
     ret = Name::PackNameSegment(pointer);
     return true;
 }

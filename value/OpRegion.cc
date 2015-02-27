@@ -7,7 +7,7 @@
 namespace norlit {
 namespace aml {
 
-OpRegion::OpRegion(uint8_t space, uint64_t off, uint64_t len): space(space), offset(off), length(len) {
+OpRegion::OpRegion(uint8_t space, uint64_t off, uint64_t len) : offset(off), length(len), space(space) {
 
 }
 
